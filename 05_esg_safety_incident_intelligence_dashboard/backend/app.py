@@ -26,21 +26,39 @@ def load_incidents():
     )
 
 
-def classify_incident(text):
-    t = text.lower()
 
-    if any(word in t for word in [
-        "waste segregation", "compliance", "regulatory", "policy deviation"
-    ]):
+def classify_incident(text):
+    text = text.lower()
+
+    # Prioritize worker injury and immediate safety risks
+    safety_keywords = [
+        "worker", "injury", "injured", "fracture", "fractured",
+        "slipped", "fell", "fall", "ppe", "near miss",
+        "vehicle", "cable trench", "warning signs"
+    ]
+
+    environment_keywords = [
+        "oil seepage", "oil spill", "spill", "water usage",
+        "water leakage", "environmental", "pollution",
+        "chemical leak"
+    ]
+
+    compliance_keywords = [
+        "waste segregation", "compliance", "non-compliance",
+        "regulatory", "audit violation"
+    ]
+
+    if any(word in text for word in safety_keywords):
+        return "safety"
+
+    if any(word in text for word in compliance_keywords):
         return "esg_compliance"
 
-    if any(word in t for word in [
-        "oil", "spill", "seepage", "water usage", "water leak",
-        "valve leakage", "environment", "emission", "pollution", "waste"
-    ]):
+    if any(word in text for word in environment_keywords):
         return "environment"
 
     return "safety"
+
 
 
 def assess_severity(text):
