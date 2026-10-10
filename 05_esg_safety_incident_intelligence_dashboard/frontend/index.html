@@ -1,10 +1,216 @@
-<!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ESG / Safety Incident Intelligence Dashboard Demo</title>
-<style>body{font-family:Arial,sans-serif;margin:32px;background:#f7fafc}.card{background:white;border:1px solid #ddd;border-radius:12px;padding:20px;max-width:850px}button{background:#12372a;color:white;border:0;border-radius:8px;padding:10px 14px;cursor:pointer}pre{background:#0f172a;color:#e5e7eb;padding:16px;border-radius:10px;overflow:auto}</style></head>
-<body><div class="card"><h1>ESG / Safety Incident Intelligence Dashboard</h1><p>This is a lightweight frontend starter. Connect it to the FastAPI endpoints in <code>/backend/app.py</code>.</p><button onclick="runDemo()">Run sample API call</button><pre id="out">Click the button to test.</pre></div>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ESG Safety Incident Intelligence Dashboard</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f3f6fa;
+      color: #172033;
+    }
+    header {
+      background: #12372a;
+      color: white;
+      padding: 26px 6%;
+    }
+    header h1 { margin: 0 0 8px; font-size: 28px; }
+    header p { margin: 0; color: #d8e9df; }
+    main { max-width: 1100px; margin: 28px auto; padding: 0 18px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+    .card {
+      background: white;
+      padding: 22px;
+      border-radius: 12px;
+      border: 1px solid #dce3eb;
+      box-shadow: 0 3px 10px #1720330a;
+      margin-bottom: 20px;
+    }
+    .metric { font-size: 30px; font-weight: bold; margin-top: 12px; }
+    .muted { color: #667085; font-size: 14px; }
+    textarea {
+      width: 100%;
+      min-height: 125px;
+      padding: 13px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font: inherit;
+      resize: vertical;
+    }
+    button {
+      background: #176b4d;
+      color: white;
+      border: 0;
+      padding: 12px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      margin-top: 12px;
+    }
+    button:disabled { opacity: .6; cursor: wait; }
+    .result {
+      background: #f8fafc;
+      border: 1px solid #dce3eb;
+      padding: 16px;
+      border-radius: 8px;
+      margin-top: 18px;
+      overflow-wrap: anywhere;
+    }
+    .pill {
+      display: inline-block;
+      background: #e0f2e9;
+      color: #145c3d;
+      padding: 6px 10px;
+      border-radius: 20px;
+      margin: 5px 5px 5px 0;
+      font-size: 13px;
+    }
+    li { margin: 9px 0; }
+    footer { text-align: center; padding: 22px; color: #667085; font-size: 13px; }
+    .error { color: #b42318; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>ESG / Safety Incident Intelligence Dashboard</h1>
+  <p>Incident classification, severity assessment and evidence-based recommendations</p>
+</header>
+
+<main>
+  <section class="grid">
+    <div class="card">
+      <div class="muted">Sample incidents</div>
+      <div class="metric" id="total">—</div>
+    </div>
+    <div class="card">
+      <div class="muted">Safety incidents</div>
+      <div class="metric" id="safety">—</div>
+    </div>
+    <div class="card">
+      <div class="muted">Environmental incidents</div>
+      <div class="metric" id="environment">—</div>
+    </div>
+    <div class="card">
+      <div class="muted">ESG compliance incidents</div>
+      <div class="metric" id="compliance">—</div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Analyze an incident</h2>
+    <p class="muted">Describe what happened. The baseline classifier uses predefined keywords; review results before making safety decisions.</p>
+    <textarea id="incident" placeholder="Example: A worker slipped on an oily floor and fractured their wrist."></textarea>
+    <br>
+    <button id="analyze" onclick="analyzeIncident()">Analyze incident</button>
+    <div id="result" aria-live="polite"></div>
+  </section>
+
+  <section class="card">
+    <h2>Dataset overview</h2>
+    <div id="severity">Loading severity statistics…</div>
+    <p class="muted" id="note"></p>
+  </section>
+</main>
+
+<footer>ESG Safety Incident Intelligence Dashboard · Keyword-based baseline · Sample data only</footer>
+
 <script>
-async function runDemo(){
-  try{ const r=await fetch('/api/demo'); const j=await r.json(); document.getElementById('out').textContent=JSON.stringify(j,null,2); }
-  catch(e){ document.getElementById('out').textContent='Backend not connected yet. Run FastAPI and serve frontend or deploy together.'; }
-}
-</script></body></html>
+  async function loadSummary() {
+    try {
+      const response = await fetch('/api/summary');
+      if (!response.ok) throw new Error('Summary request failed');
+      const data = await response.json();
+
+      document.getElementById('total').textContent = data.total_incidents;
+      document.getElementById('safety').textContent = data.category_counts.safety || 0;
+      document.getElementById('environment').textContent = data.category_counts.environment || 0;
+      document.getElementById('compliance').textContent = data.category_counts.esg_compliance || 0;
+
+      document.getElementById('severity').innerHTML =
+        Object.entries(data.severity_counts)
+          .map(([name, count]) =>
+            `<span class="pill">${escapeHtml(name)}: ${count}</span>`)
+          .join('');
+
+      document.getElementById('note').textContent = data.note || '';
+    } catch (error) {
+      document.getElementById('severity').textContent =
+        'Could not load summary. Please refresh the page.';
+    }
+  }
+
+  async function analyzeIncident() {
+    const text = document.getElementById('incident').value.trim();
+    const result = document.getElementById('result');
+    const button = document.getElementById('analyze');
+
+    if (!text) {
+      result.innerHTML = '<p class="error">Please enter an incident description.</p>';
+      return;
+    }
+
+    button.disabled = true;
+    button.textContent = 'Analyzing…';
+    result.textContent = 'Analyzing incident…';
+
+    try {
+      const response = await fetch('/api/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || 'Analysis request failed');
+      if (data.error) throw new Error(data.error);
+
+      result.innerHTML = `
+        <div class="result">
+          <h3>Analysis results</h3>
+          <p><strong>Predicted category:</strong>
+            <span class="pill">${escapeHtml(data.predicted_category)}</span></p>
+          <p><strong>Predicted severity:</strong>
+            <span class="pill">${escapeHtml(data.predicted_severity)}</span></p>
+          <h4>Recommended actions</h4>
+          <ul>${(data.recommended_actions || []).map(item =>
+            `<li>${escapeHtml(item)}</li>`).join('')}</ul>
+          <h4>Related dataset incidents</h4>
+          ${(data.matching_dataset_incidents || []).length
+            ? data.matching_dataset_incidents.map(item => `
+              <div class="result">
+                <strong>${escapeHtml(item.incident_id)}</strong> —
+                ${escapeHtml(item.narrative)}
+                <p class="muted">Category: ${escapeHtml(item.category)} ·
+                  Severity: ${escapeHtml(item.severity)}</p>
+              </div>`).join('')
+            : '<p>No matching incidents found.</p>'}
+          <p class="muted">${escapeHtml(data.method || '')}</p>
+          <p class="muted">Review predictions and recommendations with a qualified safety professional.</p>
+        </div>`;
+    } catch (error) {
+      result.innerHTML = `<p class="error">${escapeHtml(error.message)}</p>`;
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Analyze incident';
+    }
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, char => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;',
+      '"': '&quot;', "'": '&#39;'
+    })[char]);
+  }
+
+  loadSummary();
+</script>
+</body>
+</html>
